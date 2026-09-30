@@ -1,0 +1,691 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Desafío del Lienzo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: hoja cuadriculada (el lienzo de Processing) con el (0,0) arriba a la izquierda; una tarjeta de juego tipo "programa de TV" centrada */
+:root{
+  --paper:#f3f7f2; --grid:rgba(20,70,40,.09); --card:#ffffff; --ink:#15251b; --muted:#56695c; --line:#cfdcd2;
+  --accent:#00a655; --accent-ink:#ffffff;
+  --r:#e5484d; --g:#1b9e5a; --b:#3a6ee0; --y:#f2ad00;
+  --ok:#11924d; --ok-bg:#dcf5e5; --bad:#d23a3f; --bad-bg:#fde2e2; --skip:#8a6d00; --skip-bg:#fff2c7;
+  --code-bg:#15251b; --code-ink:#e7f2ea; --code-fn:#6fe0a0; --code-num:#ffc85c; --code-com:#8aa394; --code-str:#ff9aa0;
+  --f-display:"Bungee","Arial Black",Impact,sans-serif;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#0e1913; --grid:rgba(120,220,160,.07); --card:#16241c; --ink:#e6f1e9; --muted:#9db3a4; --line:#2c3f33;
+  --accent:#27c96f; --accent-ink:#06140c;
+  --r:#ff6166; --g:#34c776; --b:#6b93ff; --y:#ffc331;
+  --ok:#4fe08f; --ok-bg:#12382a; --bad:#ff7479; --bad-bg:#3d1a1d; --skip:#ffd35a; --skip-bg:#3a3110;
+  --code-bg:#0a130e; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --paper:#0e1913; --grid:rgba(120,220,160,.07); --card:#16241c; --ink:#e6f1e9; --muted:#9db3a4; --line:#2c3f33;
+  --accent:#27c96f; --accent-ink:#06140c;
+  --r:#ff6166; --g:#34c776; --b:#6b93ff; --y:#ffc331;
+  --ok:#4fe08f; --ok-bg:#12382a; --bad:#ff7479; --bad-bg:#3d1a1d; --skip:#ffd35a; --skip-bg:#3a3110;
+  --code-bg:#0a130e; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.5;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:25px 25px; padding:0 16px; padding-block:28px 60px;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--b);outline-offset:3px}
+.origin{position:fixed;top:calc(env(safe-area-inset-top,0px) + 4px);left:4px;display:flex;align-items:center;gap:5px;font:700 11px var(--f-mono);color:var(--r);pointer-events:none;z-index:1}
+.origin::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--r)}
+.coords{position:fixed;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);font:600 12px var(--f-mono);color:var(--muted);background:var(--card);border:1.5px solid var(--line);border-radius:8px;padding:3px 8px;pointer-events:none;font-variant-numeric:tabular-nums;z-index:1}
+@media (hover:none){.coords{display:none}}
+
+.wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-size:clamp(20px,4vw,28px);line-height:1;letter-spacing:.5px;margin:0}
+.brand span{color:var(--accent)}
+.tools{display:flex;gap:8px}
+.icon-btn{border:2px solid var(--ink);background:var(--card);border-radius:10px;padding:6px 10px;font-weight:800;font-size:14px;box-shadow:3px 3px 0 var(--ink)}
+.icon-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+
+.card{background:var(--card);border:2.5px solid var(--ink);border-radius:16px;box-shadow:7px 7px 0 var(--ink);padding:24px}
+@media (max-width:520px){.card{padding:18px;box-shadow:5px 5px 0 var(--ink)}}
+
+/* Inicio */
+.hero h2{font-family:var(--f-display);font-size:clamp(30px,7vw,52px);line-height:1.02;margin:0 0 10px;text-wrap:balance}
+.hero h2 .px{color:var(--r)} .hero h2 .py{color:var(--b)}
+.hero p{margin:0 0 6px;color:var(--muted);max-width:60ch}
+.shapes-row{display:flex;gap:10px;margin:14px 0 4px}
+.shapes-row i{display:block;width:26px;height:26px;border:2.5px solid var(--ink)}
+.s1{background:var(--r);border-radius:50%} .s2{background:var(--y)} .s3{background:var(--b);clip-path:polygon(50% 0,100% 100%,0 100%);border:none!important} .s4{background:var(--g);border-radius:50%;width:16px!important;height:16px!important;align-self:center}
+.setup{display:grid;gap:18px;margin-top:22px}
+.field-label{font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{border:2px solid var(--ink);background:var(--card);border-radius:999px;padding:7px 16px;font-weight:800}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--card)}
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.teams input{width:100%;border:2px solid var(--line);background:var(--paper);border-radius:10px;padding:8px 10px;font-weight:700}
+.teams input:focus{border-color:var(--ink);outline:none}
+.big-btn{border:2.5px solid var(--ink);background:var(--accent);color:var(--accent-ink);font-family:var(--f-display);font-size:22px;padding:14px 26px;border-radius:14px;box-shadow:5px 5px 0 var(--ink);letter-spacing:.5px}
+.big-btn:hover{filter:brightness(1.05)}
+.big-btn:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
+.keys{font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px}
+kbd{font:700 12px var(--f-mono);border:1.5px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:1px 6px;background:var(--paper);color:var(--ink)}
+
+/* Barra de estado */
+.hud{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.stat{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:6px 12px;display:flex;flex-direction:column;min-width:86px}
+.stat b{font-family:var(--f-display);font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums;font-weight:400}
+.stat small{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.stat.streak b{color:var(--r)}
+.stat.grow{flex:1;min-width:0}
+.teambar{display:flex;flex-wrap:wrap;gap:8px}
+.team{border:2px solid var(--line);border-radius:999px;padding:4px 12px;font-weight:800;font-size:14px;background:var(--card);display:flex;gap:8px;align-items:center}
+.team.on{border-color:var(--ink);background:var(--y);color:#15251b;box-shadow:3px 3px 0 var(--ink)}
+.team .sc{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* Regla de progreso (como las reglas del lienzo) */
+.ruler{position:relative;height:30px;border:2px solid var(--ink);border-radius:8px;background:var(--card);overflow:hidden}
+.ruler .fill{position:absolute;inset:0 auto 0 0;background:var(--accent);opacity:.9;transition:width .4s ease}
+.ruler .ticks{position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,var(--ink) 0 1.5px,transparent 1.5px 100%);background-size:var(--tick) 9px;background-repeat:repeat-x;background-position:0 100%;opacity:.55}
+.ruler .lbl{position:absolute;right:8px;top:50%;transform:translateY(-50%);font:700 12px var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* Pregunta */
+.qhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.chip{font-size:12px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:2px solid var(--ink)}
+.chip.cat{background:var(--paper)}
+.chip.kind{background:var(--ink);color:var(--card)}
+.qtext{font-size:clamp(20px,3.4vw,26px);font-weight:900;line-height:1.3;margin:0 0 14px;text-wrap:balance}
+.qtext code,.exp code,.opt code{font-family:var(--f-mono);font-size:.88em;background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:0 5px;white-space:nowrap}
+pre.code{background:var(--code-bg);color:var(--code-ink);font:500 15px/1.6 var(--f-mono);padding:14px 16px;border-radius:12px;margin:0 0 16px;overflow-x:auto;border:2px solid var(--ink)}
+.code .fn{color:var(--code-fn);font-weight:700}.code .num{color:var(--code-num)}.code .com{color:var(--code-com);font-style:italic}.code .str{color:var(--code-str)}
+.sketch{display:flex;justify-content:center;margin:0 0 16px}
+.sketch canvas{border:2px solid var(--ink);border-radius:6px;max-width:100%;height:auto}
+
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.opts{grid-template-columns:1fr}}
+.opt{position:relative;display:flex;align-items:center;gap:12px;text-align:left;border:2.5px solid var(--ink);background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:4px 4px 0 var(--ink);font-weight:800;font-size:17px;line-height:1.3;min-height:64px;transition:transform .08s,box-shadow .08s,background .2s,opacity .2s}
+.opt:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--ink)}
+.opt:active:not(:disabled){transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.opt:disabled{cursor:default}
+.opt .let{flex:none;width:34px;height:34px;display:grid;place-items:center;border:2.5px solid var(--ink);border-radius:9px;font-family:var(--f-display);font-size:17px;color:#15251b}
+.opt:nth-child(1) .let{background:var(--r)} .opt:nth-child(2) .let{background:var(--g)} .opt:nth-child(3) .let{background:var(--b)} .opt:nth-child(4) .let{background:var(--y)}
+.opt .txt{min-width:0}
+.opt.vis{flex-direction:column;align-items:flex-start}
+.opt.vis canvas{border:1.5px solid var(--line);border-radius:6px;width:100%;max-width:200px;height:auto;align-self:center}
+.opts.tf .opt{justify-content:center;font-family:var(--f-display);font-size:22px;font-weight:400;min-height:78px}
+.opts.tf .opt .let{display:none}
+.opts.tf .opt:nth-child(1){background:var(--ok-bg)} .opts.tf .opt:nth-child(2){background:var(--bad-bg)}
+.opt.is-correct{background:var(--ok-bg)!important;border-color:var(--ok);box-shadow:4px 4px 0 var(--ok)}
+.opt.is-wrong{background:var(--bad-bg)!important;border-color:var(--bad);box-shadow:4px 4px 0 var(--bad)}
+.opt.dim{opacity:.4}
+.opt .mark{margin-left:auto;font-family:var(--f-display);font-size:20px}
+.opt.is-correct .mark{color:var(--ok)} .opt.is-wrong .mark{color:var(--bad)}
+
+.fillrow{display:flex;gap:10px;flex-wrap:wrap}
+.fillrow input{flex:1 1 220px;min-width:0;border:2.5px solid var(--ink);border-radius:12px;padding:12px 14px;font:700 19px var(--f-mono);background:var(--paper)}
+.fillrow input.ok{border-color:var(--ok);background:var(--ok-bg)} .fillrow input.bad{border-color:var(--bad);background:var(--bad-bg)}
+.go{border:2.5px solid var(--ink);background:var(--ink);color:var(--card);border-radius:12px;padding:12px 20px;font-weight:900;box-shadow:4px 4px 0 var(--accent)}
+.go:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--accent)}
+
+.actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap}
+.skip{border:2px dashed var(--muted);background:transparent;border-radius:999px;padding:8px 16px;font-weight:800;color:var(--muted)}
+.skip:hover{border-style:solid;color:var(--ink);border-color:var(--ink)}
+.skip:disabled{visibility:hidden}
+.hint-note{font-size:13px;color:var(--muted);font-weight:700}
+
+.feedback{margin-top:18px;border:2.5px solid var(--ink);border-radius:14px;padding:14px 16px;display:grid;gap:8px}
+.feedback.ok{background:var(--ok-bg)} .feedback.bad{background:var(--bad-bg)}
+.feedback .ftitle{font-family:var(--f-display);font-size:24px;line-height:1.1;margin:0}
+.feedback.ok .ftitle{color:var(--ok)} .feedback.bad .ftitle{color:var(--bad)}
+.feedback .pts{font:700 14px var(--f-mono)}
+.exp{margin:0}
+.next{justify-self:end;border:2.5px solid var(--ink);background:var(--y);color:#15251b;border-radius:12px;padding:10px 20px;font-family:var(--f-display);font-size:18px;box-shadow:4px 4px 0 var(--ink)}
+.next:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+
+.pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.035) rotate(-.6deg)}100%{transform:scale(1)}}
+.shake{animation:shake .5s}
+@keyframes shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-10px) rotate(-1deg)}30%{transform:translateX(9px) rotate(1deg)}45%{transform:translateX(-7px)}60%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+.slide-in{animation:slidein .35s ease-out}
+@keyframes slidein{from{transform:translateY(14px);opacity:.3}to{transform:none;opacity:1}}
+.flash{position:fixed;inset:0;pointer-events:none;z-index:40;animation:flash .45s ease-out forwards}
+.flash.bad{background:var(--bad)} .flash.ok{background:var(--ok)}
+@keyframes flash{from{opacity:.28}to{opacity:0}}
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
+.bug{position:fixed;left:-120px;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);z-index:55;pointer-events:none;animation:crawl 2.6s linear forwards}
+.bug svg{width:70px;height:70px;animation:wiggle .18s infinite alternate}
+.bug .say{position:absolute;top:-30px;left:40px;background:var(--card);border:2px solid var(--ink);border-radius:10px;padding:2px 8px;font-family:var(--f-display);font-size:13px;white-space:nowrap;color:var(--bad)}
+@keyframes crawl{to{transform:translateX(calc(100vw + 240px))}}
+@keyframes wiggle{from{transform:rotate(86deg) translateY(-2px)}to{transform:rotate(94deg) translateY(2px)}}
+.combo{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-family:var(--f-display);font-size:clamp(34px,9vw,68px);color:var(--y);-webkit-text-stroke:2.5px #15251b;pointer-events:none;z-index:60;animation:combo 1.1s ease-out forwards;white-space:nowrap}
+@keyframes combo{0%{opacity:0;transform:translate(-50%,-30%) scale(.5)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:12px;font-weight:800;z-index:70;animation:toast 1.8s ease forwards;max-width:calc(100vw - 32px);text-align:center}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,10px)}12%,80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+
+/* Final */
+.final h2{font-family:var(--f-display);font-size:clamp(28px,6vw,44px);margin:0 0 4px;line-height:1.05;text-wrap:balance}
+.final .rank{font-weight:900;color:var(--accent);font-size:20px;margin:0 0 16px}
+.stars{font-size:40px;letter-spacing:6px;margin:6px 0 14px;color:var(--y);-webkit-text-stroke:1.5px var(--ink)}
+.tally{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.tally .stat b{font-size:26px}
+.podium{display:grid;gap:8px;margin-bottom:18px}
+.podium div{display:flex;justify-content:space-between;align-items:center;border:2px solid var(--ink);border-radius:12px;padding:10px 14px;font-weight:900;background:var(--paper)}
+.podium div:first-child{background:var(--y);color:#15251b;box-shadow:4px 4px 0 var(--ink)}
+.podium span:last-child{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.review h3{font-family:var(--f-display);font-size:18px;font-weight:400;margin:6px 0 10px}
+.review ol{margin:0;padding-left:22px;display:grid;gap:10px}
+.review li{padding-left:4px}
+.review .ans{display:block;color:var(--ok);font-weight:800;font-size:15px}
+.row-btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.ghost{border:2.5px solid var(--ink);background:var(--card);border-radius:14px;padding:12px 20px;font-weight:900;box-shadow:4px 4px 0 var(--ink)}
+.ghost:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}
+  .bug{display:none}
+}
+</style>
+
+<div class="origin" aria-hidden="true">(0,0)</div>
+<div class="coords" id="coords" aria-hidden="true">x: 0  y: 0</div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<main class="wrap">
+  <header class="top">
+    <h1 class="brand">DESAFÍO DEL <span>LIENZO</span></h1>
+    <div class="tools">
+      <button class="icon-btn" id="soundBtn" type="button" aria-pressed="true">🔊 Sonido</button>
+      <button class="icon-btn" id="homeBtn" type="button" hidden>⟲ Inicio</button>
+    </div>
+  </header>
+  <div id="screen"></div>
+  <div class="sr" aria-live="polite" id="live"></div>
+</main>
+
+<script>
+/* =========================================================
+   BANCO DE PREGUNTAS — Etapa I
+   mc: la opción correcta es SIEMPRE la primera del array (se mezclan al mostrar)
+   tf: a = true (Verdadero) / false (Falso)
+   fill: a = lista de respuestas aceptadas (se normalizan tildes, mayúsculas, espacios, ; y paréntesis)
+   ========================================================= */
+const Q = [
+ {t:'mc',cat:'Arte digital',q:'¿Qué es el arte digital?',
+  o:['Una disciplina que usa tecnología digital para crear o exhibir obras','Cualquier dibujo hecho con lápiz y papel que después se sube a Instagram','Un programa que pinta solo, sin que nadie le dé instrucciones ni ideas','Solamente los videojuegos'],
+  e:'El arte digital usa tecnologías digitales en la producción o en la exhibición: ilustraciones, diseños 2D/3D, instalaciones como “Imagine Van Gogh”.'},
+ {t:'tf',cat:'Programar',q:'La computadora trabaja sola: no necesita que nadie le dé instrucciones.',a:false,
+  e:'Falso. Programar es justamente darle instrucciones a la computadora. Sin nuestras órdenes, no hace nada.'},
+ {t:'fill',cat:'Programar',q:'Una serie ordenada de instrucciones que lleva a resolver un problema se llama ______.',a:['programa','un programa','el programa'],
+  show:'programa',e:'Un programa es una serie ordenada de instrucciones, pasos o procesos.'},
+ {t:'mc',cat:'Lienzo y coordenadas',q:'¿Dónde está el punto (0,0) del lienzo en Processing?',
+  o:['Esquina superior izquierda','En el centro exacto del lienzo, como en matemática','Esquina inferior izquierda','Esquina superior derecha'],
+  e:'En Processing el (0,0) SIEMPRE está arriba a la izquierda. Mirá el puntito rojo en la esquina de esta página.'},
+ {t:'tf',cat:'Lienzo y coordenadas',q:'Si el valor de Y aumenta, la figura se mueve hacia abajo en la pantalla.',a:true,
+  e:'Verdadero. En Processing el eje Y crece hacia ABAJO (al revés que en la carpeta de matemática).'},
+ {t:'mc',cat:'Lienzo y coordenadas',q:'Con <code>size(300, 600);</code> ¿cómo queda el lienzo?',
+  o:['300 de ancho y 600 de alto','300 de alto y 600 de ancho','Un cuadrado de 600 × 600','Ocupa toda la pantalla de la compu'],
+  e:'size(ancho, alto): primero el eje X (ancho), después el eje Y (alto). Queda un lienzo alto y angosto.'},
+ {t:'fill',cat:'Lienzo y coordenadas',q:'Completá para crear un lienzo de 800 de ancho y 400 de alto:',code:'______(800, 400);',a:['size'],
+  show:'size',e:'size() define el tamaño del lienzo en píxeles.'},
+ {t:'mc',cat:'Lienzo y coordenadas',q:'Un lienzo mide 500 × 400. ¿Cuál es la coordenada del centro?',
+  o:['(250, 200)','(200, 250)','(500, 400)','(0, 0)'],
+  e:'El centro es la mitad del ancho (500 ÷ 2 = 250) y la mitad del alto (400 ÷ 2 = 200).'},
+ {t:'mc',cat:'Lienzo y coordenadas',q:'¿En qué unidad medimos el lienzo y las figuras?',
+  o:['Píxeles','Centímetros de la hoja cuadriculada','Pulgadas','Kilobytes'],
+  e:'Todo en Processing se mide en píxeles: los puntitos de luz de la pantalla.'},
+ {t:'tf',cat:'Estructura y sintaxis',q:'Los comentarios de una sola línea empiezan con <code>//</code>',a:true,
+  e:'Verdadero. Todo lo que está después de // en esa línea es un comentario.'},
+ {t:'mc',cat:'Estructura y sintaxis',q:'¿Qué hace Processing con un comentario?',
+  o:['Lo ignora: es una nota para quien lee','Lo muestra en el lienzo como texto dentro de la obra','Lo ejecuta primero, antes que el resto del código','Lo borra al apretar Ejecutar'],
+  e:'Los comentarios son aclaraciones para las personas. La computadora no los ejecuta.'},
+ {t:'fill',cat:'Estructura y sintaxis',q:'Un comentario de bloque (varias líneas) empieza con <code>/*</code> y termina con ______',a:['*/'],
+  show:'*/',e:'/* abre el comentario de bloque y */ lo cierra. Todo lo del medio es comentario.'},
+ {t:'mc',cat:'Estructura y sintaxis',q:'¿Dónde tiene que ir la instrucción <code>size()</code>?',
+  o:['Dentro de void setup()','Dentro de void draw(), después de las figuras','Después de cerrar la última llave }','Adentro de un comentario //'],
+  e:'setup() es la configuración de inicio: ahí va size(). Las figuras van en draw().'},
+ {t:'tf',cat:'Estructura y sintaxis',q:'<code>void draw()</code> es el lugar donde van las figuras con sus propiedades.',a:true,
+  e:'Verdadero. setup() prepara el lienzo; draw() aloja las figuras y sus colores.'},
+ {t:'mc',cat:'Bugs frecuentes',q:'Este código no anda. ¿Cuál es el error?',code:'void setup(){\n  size(500, 500)\n}',
+  o:['Falta el ; al final de size(500, 500)','size se escribe en mayúsculas: SIZE','Falta un comentario que explique la línea','500 es demasiado grande para un lienzo'],
+  e:'Cada instrucción termina con punto y coma ; — es el bug más común de todos.'},
+ {t:'tf',cat:'Bugs frecuentes',q:'Processing diferencia mayúsculas de minúsculas: <code>Rect(10,10,50,50);</code> no funciona.',a:true,
+  e:'Verdadero. La instrucción es rect, en minúscula. Rect o RECT dan error.'},
+ {t:'mc',cat:'Figuras',q:'¿Cuántos valores necesita <code>point()</code>?',
+  o:['2','3','4','1'],
+  e:'point(x, y): solo la posición en X y en Y.'},
+ {t:'fill',cat:'Figuras',q:'En esta línea, el punto final está en x = ______',code:'line(100, 200, 450, 200);',a:['450'],
+  show:'450',e:'line(x1, y1, x2, y2): el punto de inicio es (100, 200) y el final es (450, 200).'},
+ {t:'tf',cat:'Figuras',q:'<code>line(100, 200, 450, 200);</code> dibuja una línea vertical.',a:false,
+  e:'Falso. Las dos Y valen 200, así que la línea no sube ni baja: es HORIZONTAL.'},
+ {t:'mc',cat:'Figuras',q:'En <code>ellipse(300, 200, 100, 100);</code> ¿qué indican el 300 y el 200?',
+  o:['El centro de la figura','La esquina superior izquierda de la figura','El ancho y el alto','El color del borde'],
+  e:'Ojo con la diferencia: ellipse se ubica desde el CENTRO; rect desde la esquina superior izquierda.'},
+ {t:'mc',cat:'Figuras',q:'¿Qué figura dibuja <code>ellipse(250, 250, 150, 80);</code>?',
+  o:['Un óvalo acostado','Un círculo perfecto','Un óvalo parado, más alto que ancho','Un rectángulo con las puntas redondeadas'],
+  e:'Diámetro de ancho 150 y de alto 80: es más ancho que alto, un óvalo “acostado”.'},
+ {t:'fill',cat:'Figuras',q:'Para que <code>ellipse()</code> dibuje un círculo perfecto, el ancho y el alto tienen que ser ______',
+  a:['iguales','igual','el mismo','lo mismo','el mismo numero','mismo numero','el mismo valor','mismo valor','los mismos'],
+  show:'iguales',e:'Si los dos diámetros son iguales, por ejemplo ellipse(100, 100, 80, 80), sale un círculo.'},
+ {t:'mc',cat:'Figuras',q:'En <code>rect(20, 20, 100, 80);</code> ¿qué es el 80?',
+  o:['El alto','El ancho','La posición en X','El grosor del borde'],
+  e:'rect(x, y, ancho, alto): el cuarto valor es el alto.'},
+ {t:'tf',cat:'Figuras',q:'En <code>rect()</code>, los dos primeros valores marcan el centro del rectángulo.',a:false,
+  e:'Falso. En rect los primeros dos valores son la ESQUINA SUPERIOR IZQUIERDA.'},
+ {t:'mc',cat:'Figuras',q:'¿Cuál de estas instrucciones dibuja un cuadrado?',
+  o:['rect(50, 50, 120, 120);','rect(50, 50, 120, 60);','ellipse(50, 50, 120, 120);','line(50, 50, 120, 120);'],
+  e:'Un cuadrado es un rect con el mismo ancho y alto.'},
+ {t:'fill',cat:'Figuras',q:'¿Cuántos números (valores) lleva <code>triangle()</code>?',a:['6','seis'],
+  show:'6',e:'triangle(x1, y1, x2, y2, x3, y3): 3 vértices × 2 coordenadas = 6 valores.'},
+ {t:'mc',cat:'Figuras',q:'En este triángulo, ¿cuál es el segundo vértice?',code:'triangle(100, 100, 500, 0, 400, 400);',
+  o:['(500, 0)','(100, 100)','(400, 400)','(0, 500)'],
+  e:'Los valores van de a pares: (100,100) es el vértice 1, (500,0) el 2 y (400,400) el 3.'},
+ {t:'tf',cat:'Figuras',q:'<code>quad()</code> necesita 4 vértices y el orden en que los escribís importa.',a:true,
+  e:'Verdadero. Se recorren en orden, como las agujas del reloj: A, B, C, D.'},
+ {t:'mc',cat:'Figuras',q:'Si en <code>quad()</code> escribís los vértices desordenados, ¿qué pasa?',
+  o:['Sale una figura cruzada, con forma de moño','Processing los reordena solo según las agujas del reloj','Aparece un error y no se abre la ventana','Se dibuja un triángulo'],
+  e:'Processing une los puntos en el orden que los escribiste. Si saltás un vértice, los lados se cruzan.'},
+ {t:'fill',cat:'Lienzo y coordenadas',q:'En el TP N°1 en papel: 1 cuadradito de la hoja = ______ unidades de Processing.',a:['50','cincuenta'],
+  show:'50',e:'Cada cuadradito vale 50, por eso 4 cuadraditos son 200 píxeles.'},
+ {t:'mc',cat:'Figuras',q:'¿Qué código dibuja esto?',
+  draw:[['size',200,200],['grid',50],['fill','#e5484d'],['rect',50,50,100,60]],
+  o:['rect(50, 50, 100, 60);','rect(50, 50, 60, 100);','rect(100, 80, 100, 60);','ellipse(100, 80, 100, 60);'],
+  e:'La esquina superior izquierda está en (50, 50), mide 100 de ancho y 60 de alto.'},
+ {t:'mc',cat:'Figuras',q:'¿Qué código dibuja este círculo?',
+  draw:[['size',200,200],['grid',50],['fill','#3a6ee0'],['ellipse',100,100,80,80]],
+  o:['ellipse(100, 100, 80, 80);','ellipse(60, 60, 80, 80);','ellipse(100, 100, 40, 40);','rect(60, 60, 80, 80);'],
+  e:'El centro está en (100, 100) y el diámetro mide 80 (de 60 a 140).'},
+ {t:'mc',cat:'Figuras',q:'¿Qué se ve con <code>line(20, 20, 180, 180);</code> en un lienzo de 200 × 200?',vis:true,
+  o:[[['size',200,200],['grid',50],['strokeWeight',6],['line',20,20,180,180]],
+     [['size',200,200],['grid',50],['strokeWeight',6],['line',20,180,180,20]],
+     [['size',200,200],['grid',50],['strokeWeight',6],['line',20,100,180,100]],
+     [['size',200,200],['grid',50],['strokeWeight',6],['line',100,20,100,180]]],
+  lab:['Diagonal que baja hacia la derecha','Diagonal que sube hacia la derecha','Línea horizontal','Línea vertical'],
+  e:'Arranca arriba a la izquierda (20, 20) y termina abajo a la derecha (180, 180): como Y crece hacia abajo, la línea baja.'},
+ {t:'mc',cat:'Propiedades',q:'¿Qué cambia <code>stroke(#FF0000);</code>?',
+  o:['El color del borde o de la línea','El color de relleno de la figura','El color de fondo del lienzo','El grosor de la línea'],
+  e:'stroke = borde/trazo. fill = relleno. background = fondo.'},
+ {t:'fill',cat:'Propiedades',q:'Para que una línea tenga 5 píxeles de grosor usamos:',code:'______(5);\nline(100, 100, 250, 100);',a:['strokeweight'],
+  show:'strokeWeight',e:'strokeWeight() cambia el grosor del trazo. Ojo: la W va en mayúscula.'},
+ {t:'mc',cat:'Propiedades',q:'¿Qué instrucción le saca el borde a las figuras?',
+  o:['noStroke();','noFill();','stroke(0);','background(255);'],
+  e:'noStroke() = sin borde. noFill() = sin relleno.'},
+ {t:'tf',cat:'Propiedades',q:'<code>noFill();</code> deja la figura sin relleno: solo se ve el borde.',a:true,
+  e:'Verdadero. La figura queda “hueca”, se ve el fondo a través.'},
+ {t:'mc',cat:'Propiedades',q:'Mirá el código. ¿De qué color queda la elipse?',code:'fill(#00FF00);\nrect(20, 20, 100, 80);\nellipse(250, 60, 80, 80);',
+  o:['Verde también','Blanca, porque fill solo pinta la figura que está justo abajo','Negra','Transparente'],
+  e:'fill() queda activo para TODAS las figuras que siguen, hasta que escribas otro fill().'},
+ {t:'mc',cat:'Color',q:'¿Cómo se ve una figura con <code>fill(#000000, 0);</code>?',
+  o:['Transparente','Negra y totalmente opaca','Gris, a mitad de camino entre negro y blanco','Blanca'],
+  e:'El segundo valor es la opacidad: 0 es transparente y 255 es totalmente opaco.'},
+ {t:'fill',cat:'Color',q:'La opacidad va de 0 (transparente) a ______ (totalmente opaco).',a:['255'],
+  show:'255',e:'Casi todo en color va de 0 a 255 en Processing: RGB, grises y opacidad.'},
+ {t:'mc',cat:'Color',q:'¿De qué color queda el fondo con <code>background(0, 0, 255);</code>?',
+  o:['Azul','Rojo','Verde','Negro'],
+  e:'Los valores son (R, G, B): rojo 0, verde 0, azul 255 → azul puro.'},
+ {t:'mc',cat:'Color',q:'Con luz se mezcla distinto que con témperas. ¿Qué color da <code>fill(255, 255, 0);</code>?',
+  o:['Amarillo','Marrón','Violeta','Naranja oscuro'],
+  e:'En la pantalla los colores son luz: rojo + verde al máximo da AMARILLO.'},
+ {t:'tf',cat:'Color',q:'<code>background(255);</code> pinta el fondo de negro.',a:false,
+  e:'Falso. Con un solo número es escala de grises: 0 = negro y 255 = blanco.'},
+ {t:'mc',cat:'Color',q:'¿Qué significan las letras RGB?',
+  o:['Red, Green, Blue','Rosa, Gris y Bordó','Rojo, Gris, Blanco','Red, Gray, Black'],
+  e:'RGB = rojo, verde y azul: los tres colores de luz que forman todos los demás en la pantalla.'},
+ {t:'fill',cat:'Entorno Processing',q:'¿Qué herramienta de Processing te muestra el código hexadecimal y el RGB de un color? Herramientas → Selector de ______',a:['colores','color','colors'],
+  show:'colores',e:'Herramientas → Selector de colores: elegís el color y copiás el #hexa o los valores RGB.'},
+ {t:'tf',cat:'Color',q:'<code>#FFFFFF</code> es el código hexadecimal del blanco.',a:true,
+  e:'Verdadero. #FFFFFF es el blanco y #000000 es el negro.'},
+ {t:'mc',cat:'Propiedades',q:'¿Con qué instrucción cambiás el color de un <code>text()</code>?',
+  o:['fill()','stroke()','textSize()','textColor()'],
+  e:'¡Trampa! El texto se pinta con fill(). textSize() cambia el tamaño y textColor() no existe.'},
+ {t:'mc',cat:'Entorno Processing',q:'Cuando agregás una imagen con Sketch → Añadir archivo, ¿dónde la guarda Processing?',
+  o:['En la carpeta data del sketch','En el escritorio de la computadora','Adentro del archivo .pde, mezclada con el código','En la papelera de reciclaje hasta que la uses'],
+  e:'Processing crea una carpeta llamada data dentro de la carpeta del sketch. Ahí busca loadImage().'},
+ {t:'tf',cat:'Entorno Processing',q:'Processing acepta cualquier archivo como imagen, por ejemplo un .docx o un .mp3.',a:false,
+  e:'Falso. Tiene que ser una imagen .jpg o .png, con un nombre simple, sin espacios ni tildes.'},
+ {t:'mc',cat:'Entorno Processing',q:'¿Qué es una carpeta comprimida (.zip)?',
+  o:['Un archivo que agrupa varios y ocupa menos','Una carpeta que se borra sola después de abrirla una vez','Un virus que se esconde en los pendrives','Un programa para dibujar'],
+  e:'Comprimir junta varios archivos en uno solo y más liviano. Para usarlos hay que descomprimir (extraer).'}
+];
+
+/* ---------- Estado ---------- */
+const $ = s => document.querySelector(s);
+const screen = $('#screen');
+const PHRASES_OK = ['¡Bien ahí!','¡Crack del código!','¡Compiló perfecto!','¡Tremendo!','¡Esa es la posta!','¡Pixel perfecto!','¡Sos un genio!','¡Ni un bug!'];
+const PHRASES_BAD = ['¡Uh, un bug!','Casi, casi…','¡Error de sintaxis!','Nop, esa no era','¡Se rompió el lienzo!','Ups… a revisar'];
+let state = null;
+let sound = true;
+let settings = {count:50, teams:1, names:['Equipo 1','Equipo 2','Equipo 3','Equipo 4']};
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[\s;()"'.]/g,'');
+function say(t){$('#live').textContent=t;}
+
+function highlight(code){
+  return code.split('\n').map(line=>{
+    let com='';const i=line.indexOf('//');
+    if(i>=0){com='<span class="com">'+esc(line.slice(i))+'</span>';line=line.slice(0,i);}
+    let h=esc(line)
+      .replace(/(#[0-9A-Fa-f]{6})/g,'<span class="str">$1</span>')
+      .replace(/\b([a-zA-Z_]+)(?=\()/g,'<span class="fn">$1</span>')
+      .replace(/(^|[^#\w])(\d+)/g,'$1<span class="num">$2</span>');
+    return h+com;
+  }).join('\n');
+}
+
+/* ---------- Mini intérprete de Processing para los dibujos ---------- */
+function parseColor(args){
+  if(typeof args[0]==='string'){const a=args[1]; return a===undefined?args[0]:hexA(args[0],a);}
+  if(args.length===1||args.length===2){const v=args[0];return args.length===2?`rgba(${v},${v},${v},${args[1]/255})`:`rgb(${v},${v},${v})`;}
+  return args.length===4?`rgba(${args[0]},${args[1]},${args[2]},${args[3]/255})`:`rgb(${args[0]},${args[1]},${args[2]})`;
+}
+function hexA(h,a){const n=parseInt(h.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a/255})`;}
+function renderSketch(canvas, ops, cssW){
+  const [,W,H]=ops[0]; const dpr=window.devicePixelRatio||1; const cssH=cssW*H/W;
+  canvas.width=Math.round(cssW*dpr); canvas.height=Math.round(cssH*dpr);
+  canvas.style.width=cssW+'px'; canvas.style.aspectRatio=W+'/'+H;
+  const c=canvas.getContext('2d'); const k=cssW/W*dpr; c.setTransform(k,0,0,k,0,0);
+  let fill='#ffffff', stroke='#000000', sw=1;
+  c.fillStyle='rgb(230,230,230)'; c.fillRect(0,0,W,H);
+  const doShape=(path)=>{c.beginPath();path();if(fill){c.fillStyle=fill;c.fill();}if(stroke){c.strokeStyle=stroke;c.lineWidth=sw;c.stroke();}};
+  for(const op of ops.slice(1)){
+    const [n,...a]=op;
+    if(n==='background'){c.fillStyle=parseColor(a);c.fillRect(0,0,W,H);}
+    else if(n==='grid'){
+      const st=a[0]; c.save(); c.strokeStyle='rgba(0,0,0,.14)'; c.lineWidth=1/(k/dpr);
+      for(let x=st;x<W;x+=st){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();}
+      for(let y=st;y<H;y+=st){c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();}
+      c.fillStyle='rgba(0,0,0,.55)'; c.font=`700 ${11/(k/dpr)}px JetBrains Mono, monospace`; c.textBaseline='top';
+      for(let x=st;x<W;x+=st) c.fillText(x,x+2/(k/dpr),2/(k/dpr));
+      for(let y=st;y<H;y+=st) c.fillText(y,2/(k/dpr),y+2/(k/dpr));
+      c.fillStyle='#e5484d'; c.beginPath(); c.arc(0,0,6/(k/dpr),0,Math.PI*2); c.fill(); c.restore();
+    }
+    else if(n==='fill') fill=parseColor(a);
+    else if(n==='noFill') fill=null;
+    else if(n==='stroke') stroke=parseColor(a);
+    else if(n==='noStroke') stroke=null;
+    else if(n==='strokeWeight') sw=a[0];
+    else if(n==='rect') doShape(()=>c.rect(a[0],a[1],a[2],a[3]));
+    else if(n==='ellipse') doShape(()=>c.ellipse(a[0],a[1],a[2]/2,a[3]/2,0,0,Math.PI*2));
+    else if(n==='triangle') doShape(()=>{c.moveTo(a[0],a[1]);c.lineTo(a[2],a[3]);c.lineTo(a[4],a[5]);c.closePath();});
+    else if(n==='quad') doShape(()=>{c.moveTo(a[0],a[1]);c.lineTo(a[2],a[3]);c.lineTo(a[4],a[5]);c.lineTo(a[6],a[7]);c.closePath();});
+    else if(n==='line'){if(stroke){c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(a[2],a[3]);c.strokeStyle=stroke;c.lineWidth=sw;c.lineCap='round';c.stroke();}}
+    else if(n==='point'){if(stroke){c.fillStyle=stroke;c.beginPath();c.arc(a[0],a[1],Math.max(sw,1)/2,0,Math.PI*2);c.fill();}}
+  }
+}
+
+/* ---------- Sonido (Web Audio, arranca tras un clic) ---------- */
+let actx=null;
+function tone(freq,dur,type='square',when=0,vol=.07){
+  if(!sound) return;
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const t=actx.currentTime+when,o=actx.createOscillator(),g=actx.createGain();
+    o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+    o.connect(g).connect(actx.destination);o.start(t);o.stop(t+dur);
+  }catch(e){}
+}
+const sfx={
+  ok(){[523,659,784,1047].forEach((f,i)=>tone(f,.14,'square',i*.08));},
+  bad(){tone(180,.25,'sawtooth',0,.08);tone(120,.35,'sawtooth',.18,.08);},
+  skip(){tone(700,.08,'triangle');tone(420,.1,'triangle',.07);},
+  combo(){[784,988,1175,1568].forEach((f,i)=>tone(f,.1,'square',i*.05,.05));},
+  end(){[523,659,784,659,784,1047].forEach((f,i)=>tone(f,.18,'square',i*.12));}
+};
+
+/* ---------- Efectos ---------- */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cvs=$('#confetti'), cx=cvs.getContext('2d'); let parts=[], raf=0;
+function confetti(n=110){
+  if(reduce) return;
+  const dpr=window.devicePixelRatio||1; cvs.width=innerWidth*dpr; cvs.height=innerHeight*dpr; cx.setTransform(dpr,0,0,dpr,0,0);
+  const cs=getComputedStyle(document.documentElement);
+  const cols=['--r','--g','--b','--y','--accent'].map(v=>cs.getPropertyValue(v).trim());
+  for(let i=0;i<n;i++){
+    const side=i%2?innerWidth*.15:innerWidth*.85;
+    parts.push({x:side,y:innerHeight*.55,vx:(Math.random()-.5)*14+(i%2?4:-4),vy:-Math.random()*15-7,s:8+Math.random()*10,
+      r:Math.random()*6,vr:(Math.random()-.5)*.35,c:cols[i%cols.length],k:i%3,life:0});
+  }
+  if(!raf) loop();
+}
+function loop(){
+  cx.clearRect(0,0,innerWidth,innerHeight);
+  parts.forEach(p=>{p.vy+=.45;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;p.life++;
+    cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.c;cx.strokeStyle='#15251b';cx.lineWidth=1.5;cx.beginPath();
+    if(p.k===0) cx.arc(0,0,p.s/2,0,Math.PI*2); else if(p.k===1) cx.rect(-p.s/2,-p.s/2,p.s,p.s*.7); else {cx.moveTo(0,-p.s/2);cx.lineTo(p.s/2,p.s/2);cx.lineTo(-p.s/2,p.s/2);cx.closePath();}
+    cx.fill();cx.stroke();cx.restore();});
+  parts=parts.filter(p=>p.y<innerHeight+40&&p.life<260);
+  raf=parts.length?requestAnimationFrame(loop):(cx.clearRect(0,0,innerWidth,innerHeight),0);
+}
+function flash(kind){const d=document.createElement('div');d.className='flash '+kind;document.body.appendChild(d);setTimeout(()=>d.remove(),500);}
+function bug(){
+  if(reduce) return;
+  const d=document.createElement('div');d.className='bug';
+  d.innerHTML=`<span class="say">¡BUG!</span><svg viewBox="0 0 64 64" aria-hidden="true"><g stroke="#15251b" stroke-width="3" stroke-linecap="round" fill="none"><path d="M20 26 8 20M20 34H6M20 42 8 50M44 26l12-6M44 34h14M44 42l12 8M26 14l-6-8M38 14l6-8"/></g><ellipse cx="32" cy="36" rx="14" ry="18" fill="#e5484d" stroke="#15251b" stroke-width="3"/><circle cx="32" cy="16" r="8" fill="#15251b"/><path d="M32 18v36" stroke="#15251b" stroke-width="3"/><circle cx="26" cy="30" r="3" fill="#15251b"/><circle cx="38" cy="40" r="3.5" fill="#15251b"/><circle cx="25" cy="45" r="2.5" fill="#15251b"/><circle cx="29" cy="14" r="2" fill="#fff"/><circle cx="35" cy="14" r="2" fill="#fff"/></svg>`;
+  document.body.appendChild(d);setTimeout(()=>d.remove(),2700);
+}
+function combo(n){if(reduce) return;const d=document.createElement('div');d.className='combo';d.textContent=`¡RACHA ×${n}!`;document.body.appendChild(d);setTimeout(()=>d.remove(),1150);}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),1850);}
+
+/* ---------- Pantallas ---------- */
+function renderStart(){
+  $('#homeBtn').hidden=true;
+  screen.innerHTML=`
+  <section class="card hero slide-in">
+    <h2>Repaso Etapa I: <span class="px">X</span>, <span class="py">Y</span> y a jugar</h2>
+    <p>50 preguntas sobre el lienzo, las coordenadas, las figuras, las propiedades y el color en Processing. Hay multiple choice, verdadero o falso y para completar.</p>
+    <div class="shapes-row" aria-hidden="true"><i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i></div>
+    <div class="setup">
+      <div>
+        <div class="field-label" id="lblCount">¿Cuántas preguntas?</div>
+        <div class="seg" role="group" aria-labelledby="lblCount" id="segCount">
+          ${[50,20,10].map(n=>`<button type="button" data-n="${n}" aria-pressed="${settings.count===n}">${n===50?'Las 50':'Ronda de '+n}</button>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="field-label" id="lblTeams">¿Quiénes juegan?</div>
+        <div class="seg" role="group" aria-labelledby="lblTeams" id="segTeams">
+          ${[1,2,3,4].map(n=>`<button type="button" data-n="${n}" aria-pressed="${settings.teams===n}">${n===1?'Solo/a':n+' equipos'}</button>`).join('')}
+        </div>
+      </div>
+      <div class="teams" id="teamNames" ${settings.teams===1?'hidden':''}>
+        ${[0,1,2,3].map(i=>`<input id="team${i}" aria-label="Nombre del equipo ${i+1}" value="${esc(settings.names[i])}" ${i<settings.teams?'':'hidden'} maxlength="18">`).join('')}
+      </div>
+      <div><button class="big-btn" id="startBtn" type="button">¡A JUGAR! ▶</button></div>
+      <div class="keys"><span><kbd>1</kbd>–<kbd>4</kbd> elegir</span><span><kbd>V</kbd>/<kbd>F</kbd> verdadero o falso</span><span><kbd>S</kbd> saltear</span><span><kbd>Enter</kbd> siguiente</span></div>
+    </div>
+  </section>`;
+  $('#segCount').onclick=e=>{const b=e.target.closest('button');if(!b)return;settings.count=+b.dataset.n;renderStart();};
+  $('#segTeams').onclick=e=>{const b=e.target.closest('button');if(!b)return;saveNames();settings.teams=+b.dataset.n;renderStart();};
+  $('#startBtn').onclick=()=>{saveNames();startGame(shuffle(Q.map((_,i)=>i)).slice(0,settings.count));};
+}
+function saveNames(){for(let i=0;i<4;i++){const el=$('#team'+i);if(el&&el.value.trim())settings.names[i]=el.value.trim();}}
+
+function startGame(ids){
+  tone(1,.001);
+  state={queue:ids.slice(),pos:0,turn:0,skipped:{},res:{},locked:false,order:null,
+    teams:Array.from({length:settings.teams},(_,i)=>({name:settings.teams===1?'Vos':settings.names[i],score:0,streak:0,best:0,ok:0,bad:0})),
+    total:ids.length,answered:0,last:null};
+  renderQuestion();
+}
+
+function currentQ(){return Q[state.queue[state.pos]];}
+
+function renderQuestion(){
+  $('#homeBtn').hidden=false;
+  const id=state.queue[state.pos], q=Q[id];
+  state.locked=false; state.last=null;
+  if(q.t==='mc' && (!state.order||state.order.id!==id)) state.order={id,idx:shuffle([0,1,2,3])};
+  const tm=state.teams[state.turn];
+  const done=state.answered, pct=Math.round(done/state.total*100);
+  const kind={mc:'Multiple choice',tf:'Verdadero o falso',fill:'Completá'}[q.t];
+  const back=state.skipped[id]?'<span class="chip" style="background:var(--skip-bg)">Volvió de salteada</span>':'';
+  let opts='';
+  if(q.t==='mc'){
+    opts=`<div class="opts" id="opts">${state.order.idx.map((oi,i)=>q.vis
+      ?`<button class="opt vis" type="button" data-i="${oi}" aria-label="Opción ${'ABCD'[i]}: ${esc(q.lab[oi])}"><span class="let">${'ABCD'[i]}</span><canvas data-v="${oi}"></canvas></button>`
+      :`<button class="opt" type="button" data-i="${oi}"><span class="let">${'ABCD'[i]}</span><span class="txt">${q.o[oi].includes('(')&&/^[a-zA-Z]+\(/.test(q.o[oi])?'<code>'+esc(q.o[oi])+'</code>':esc(q.o[oi])}</span></button>`).join('')}</div>`;
+  } else if(q.t==='tf'){
+    opts=`<div class="opts tf" id="opts"><button class="opt" type="button" data-tf="1">✓ Verdadero</button><button class="opt" type="button" data-tf="0">✗ Falso</button></div>`;
+  } else {
+    opts=`<form class="fillrow" id="fillForm" autocomplete="off"><input id="fillIn" aria-label="Tu respuesta" placeholder="Escribí tu respuesta…" spellcheck="false" autocapitalize="off"><button class="go" type="submit">Comprobar</button></form>`;
+  }
+  screen.innerHTML=`
+  <div class="hud">
+    <div class="stat"><small>Pregunta</small><b>${Math.min(done+1,state.total)}/${state.total}</b></div>
+    <div class="stat"><small>${state.teams.length>1?esc(tm.name):'Puntos'}</small><b>${tm.score}</b></div>
+    <div class="stat streak"><small>Racha</small><b>${tm.streak?'🔥'+tm.streak:'0'}</b></div>
+    <div class="stat grow"><small>Progreso</small><div class="ruler" style="--tick:${100/state.total}%"><div class="fill" style="width:${pct}%"></div><div class="ticks"></div><span class="lbl">${pct}%</span></div></div>
+  </div>
+  ${state.teams.length>1?`<div class="teambar">${state.teams.map((t,i)=>`<span class="team ${i===state.turn?'on':''}">${i===state.turn?'▶ ':''}${esc(t.name)} <span class="sc">${t.score}</span></span>`).join('')}</div>`:''}
+  <section class="card slide-in" id="qcard">
+    <div class="qhead"><span class="chip kind">${kind}</span><span class="chip cat">${q.cat}</span>${back}</div>
+    <p class="qtext">${q.q}</p>
+    ${q.code?`<pre class="code">${highlight(q.code)}</pre>`:''}
+    ${q.draw?`<div class="sketch"><canvas id="sk" role="img" aria-label="Dibujo en un lienzo de Processing"></canvas></div>`:''}
+    ${opts}
+    <div id="fb"></div>
+    <div class="actions" id="actions">
+      <button class="skip" type="button" id="skipBtn">Saltear ⤼</button>
+      <span class="hint-note">${state.teams.length>1?'Turno de '+esc(tm.name):(state.skipped[id]?'Última oportunidad para esta':'Las salteadas vuelven al final')}</span>
+    </div>
+  </section>`;
+  if(q.draw) renderSketch($('#sk'),q.draw,Math.min(260,screen.clientWidth-80));
+  if(q.vis) screen.querySelectorAll('canvas[data-v]').forEach(c=>renderSketch(c,q.o[+c.dataset.v],150));
+  const o=$('#opts'); if(o) o.onclick=e=>{const b=e.target.closest('.opt');if(!b)return;
+    if(b.dataset.tf!==undefined) answer(b.dataset.tf==='1'); else answer(+b.dataset.i);};
+  const f=$('#fillForm'); if(f){f.onsubmit=e=>{e.preventDefault();const v=$('#fillIn').value;if(!v.trim()){$('#fillIn').focus();return;}answer(v);};setTimeout(()=>$('#fillIn')?.focus(),50);}
+  $('#skipBtn').onclick=skip;
+  say(`Pregunta ${done+1}. ${q.q.replace(/<[^>]+>/g,'')}`);
+}
+
+function answer(val){
+  if(state.locked) return; state.locked=true;
+  const id=state.queue[state.pos], q=Q[id], tm=state.teams[state.turn];
+  let ok, right;
+  if(q.t==='mc'){ok=val===0; right=q.vis?q.lab[0]:q.o[0];}
+  else if(q.t==='tf'){ok=val===q.a; right=q.a?'Verdadero':'Falso';}
+  else {ok=q.a.map(norm).includes(norm(val)); right=q.show;}
+  state.answered++;
+  let gained=0;
+  if(ok){tm.streak++;tm.best=Math.max(tm.best,tm.streak);tm.ok++;gained=100+Math.min(tm.streak-1,5)*20;tm.score+=gained;state.res[id]='ok';}
+  else{tm.streak=0;tm.bad++;state.res[id]='bad';}
+  state.last={ok,right,gained,val:q.t==='fill'?val:null};
+  // marcar opciones
+  if(q.t==='mc'||q.t==='tf'){
+    screen.querySelectorAll('.opt').forEach(b=>{
+      b.disabled=true;
+      const isRight=q.t==='mc'?+b.dataset.i===0:(b.dataset.tf==='1')===q.a;
+      const chosen=q.t==='mc'?+b.dataset.i===val:(b.dataset.tf==='1')===val;
+      if(isRight){b.classList.add('is-correct');b.insertAdjacentHTML('beforeend','<span class="mark">✓</span>');}
+      else if(chosen){b.classList.add('is-wrong');b.insertAdjacentHTML('beforeend','<span class="mark">✗</span>');}
+      else b.classList.add('dim');
+    });
+  } else {const inp=$('#fillIn');inp.disabled=true;inp.classList.add(ok?'ok':'bad');screen.querySelector('.go').disabled=true;}
+  $('#skipBtn').disabled=true;
+  showFeedback();
+  const card=$('#qcard');
+  if(ok){sfx.ok();confetti(tm.streak>=3?170:100);card.classList.remove('pop');void card.offsetWidth;card.classList.add('pop');flash('ok');
+    if(tm.streak>=3&&tm.streak%1===0){setTimeout(()=>{combo(tm.streak);sfx.combo();},250);}}
+  else{sfx.bad();card.classList.remove('shake');void card.offsetWidth;card.classList.add('shake');flash('bad');bug();}
+}
+
+function showFeedback(){
+  const q=currentQ(), L=state.last;
+  const title=L.ok?PHRASES_OK[Math.floor(Math.random()*PHRASES_OK.length)]:PHRASES_BAD[Math.floor(Math.random()*PHRASES_BAD.length)];
+  $('#fb').innerHTML=`<div class="feedback ${L.ok?'ok':'bad'} slide-in">
+    <p class="ftitle">${title}</p>
+    ${L.ok?`<span class="pts">+${L.gained} puntos${L.gained>100?' (bonus por racha)':''}</span>`:`<span class="pts">Respuesta correcta: ${esc(L.right)}</span>`}
+    <p class="exp">${q.e}</p>
+    <button class="next" type="button" id="nextBtn">${state.pos+1>=state.queue.length?'Ver resultados 🏁':'Siguiente →'}</button>
+  </div>`;
+  $('#nextBtn').onclick=next; setTimeout(()=>$('#nextBtn')?.focus({preventScroll:true}),30);
+  $('#fb').scrollIntoView({behavior:reduce?'auto':'smooth',block:'nearest'});
+  say((L.ok?'Correcto. ':'Incorrecto. La respuesta es '+L.right+'. ')+q.e.replace(/<[^>]+>/g,''));
+}
+
+function skip(){
+  if(state.locked) return;
+  const id=state.queue[state.pos];
+  sfx.skip();
+  if(!state.skipped[id]){state.skipped[id]=true;state.queue.push(id);toast('Salteada ⤼ La guardamos para el final');}
+  else{state.res[id]='skip';state.answered++;toast('Salteada otra vez: cuenta como sin responder');}
+  advance();
+}
+function next(){advance();}
+function advance(){
+  state.pos++; state.order=null;
+  if(state.teams.length>1) state.turn=(state.turn+1)%state.teams.length;
+  if(state.pos>=state.queue.length) renderEnd(); else {renderQuestion();window.scrollTo({top:0,behavior:reduce?'auto':'smooth'});}
+}
+
+function renderEnd(){
+  sfx.end(); confetti(180);
+  const ids=[...new Set(state.queue)];
+  const okN=ids.filter(i=>state.res[i]==='ok').length, badIds=ids.filter(i=>state.res[i]==='bad'), skipIds=ids.filter(i=>state.res[i]==='skip');
+  const pct=Math.round(okN/state.total*100);
+  const stars=pct>=90?3:pct>=65?2:pct>=40?1:0;
+  const rank=pct>=90?'Maestro/a del Lienzo 🎨':pct>=75?'Artista del código':pct>=55?'Programador/a en camino':pct>=35?'Aprendiz de píxeles':'Cazador/a de bugs en entrenamiento';
+  const miss=[...badIds,...skipIds];
+  const podium=state.teams.length>1?`<div class="podium">${state.teams.slice().sort((a,b)=>b.score-a.score).map((t,i)=>`<div><span>${['🥇','🥈','🥉','4°'][i]} ${esc(t.name)}</span><span>${t.score} pts · ${t.ok}✓</span></div>`).join('')}</div>`:'';
+  const t0=state.teams[0];
+  screen.innerHTML=`<section class="card final slide-in">
+    <h2>${state.teams.length>1?'¡Ganó '+esc(state.teams.slice().sort((a,b)=>b.score-a.score)[0].name)+'!':'¡Terminaste el desafío!'}</h2>
+    <p class="rank">${state.teams.length>1?'Entre todos: '+rank:rank}</p>
+    <div class="stars" aria-label="${stars} de 3 estrellas">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
+    ${podium}
+    <div class="tally">
+      <div class="stat"><small>Correctas</small><b style="color:var(--ok)">${okN}</b></div>
+      <div class="stat"><small>Incorrectas</small><b style="color:var(--bad)">${badIds.length}</b></div>
+      <div class="stat"><small>Salteadas</small><b style="color:var(--skip)">${skipIds.length}</b></div>
+      <div class="stat"><small>Aciertos</small><b>${pct}%</b></div>
+      ${state.teams.length===1?`<div class="stat"><small>Puntos</small><b>${t0.score}</b></div><div class="stat"><small>Mejor racha</small><b>🔥${t0.best}</b></div>`:''}
+    </div>
+    ${miss.length?`<div class="review"><h3>Para repasar</h3><ol>${miss.map(i=>{const q=Q[i];const r=q.t==='mc'?(q.vis?q.lab[0]:q.o[0]):q.t==='tf'?(q.a?'Verdadero':'Falso'):q.show;
+      return `<li>${q.q}${q.code?` <code>${esc(q.code.split('\n').join(' '))}</code>`:''}<span class="ans">✓ ${esc(r)}</span></li>`;}).join('')}</ol></div>`:'<p class="rank">¡Cero errores! Pixel perfecto.</p>'}
+    <div class="row-btns">
+      ${miss.length?`<button class="big-btn" type="button" id="retryMiss">Repasar las ${miss.length} que faltaron</button>`:''}
+      <button class="ghost" type="button" id="again">Jugar de nuevo</button>
+    </div>
+  </section>`;
+  if(miss.length) $('#retryMiss').onclick=()=>startGame(shuffle(miss));
+  $('#again').onclick=renderStart;
+  say(`Fin del juego. ${okN} correctas de ${state.total}.`);
+}
+
+/* ---------- Controles globales ---------- */
+$('#soundBtn').onclick=e=>{sound=!sound;e.currentTarget.setAttribute('aria-pressed',sound);e.currentTarget.textContent=sound?'🔊 Sonido':'🔇 Sin sonido';};
+$('#homeBtn').onclick=()=>{
+  const b=$('#homeBtn');
+  if(b.dataset.confirm){delete b.dataset.confirm;b.textContent='⟲ Inicio';renderStart();}
+  else{b.dataset.confirm='1';b.textContent='¿Salir? Tocá otra vez';setTimeout(()=>{if(b.dataset.confirm){delete b.dataset.confirm;b.textContent='⟲ Inicio';}},2500);}
+};
+document.addEventListener('keydown',e=>{
+  if(!state||!$('#qcard')) return;
+  if(e.target.tagName==='INPUT') return;
+  const k=e.key.toLowerCase(), q=currentQ();
+  if(state.locked){ if(k==='enter'||k===' '){e.preventDefault();next();} return; }
+  if(k==='s'){skip();return;}
+  if(q.t==='mc'&&'1234abcd'.includes(k)&&k.length===1){const n='1234'.includes(k)?+k-1:'abcd'.indexOf(k);answer(state.order.idx[n]);}
+  if(q.t==='tf'){if(k==='v'||k==='1')answer(true);if(k==='f'||k==='2')answer(false);}
+});
+addEventListener('pointermove',e=>{$('#coords').textContent=`x: ${Math.round(e.clientX)}  y: ${Math.round(e.clientY)}`;});
+
+/* ---------- Arranque (conserva la partida si la página se actualiza) ---------- */
+function start(data){
+  if(data&&data.state){state=data.state;settings=data.settings||settings;sound=data.sound!==false;
+    if(state.locked){state.locked=false;advance();}
+    else if(state.pos>=state.queue.length) renderEnd(); else renderQuestion();}
+  else renderStart();
+}
+window.claude?.hot?.snapshot?.(()=>({state,settings,sound}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body></html>
